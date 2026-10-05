@@ -1,0 +1,57 @@
+# qalqonai.uz ni asosiy repodan (abduquddus1990/ota-ona-nazorat) yig'ib chiqaradi.
+#
+# Saytning manbasi o'sha repoda: site/ papkasi va ildizdagi huquqiy
+# hujjatlar. Bu repo faqat chiqarish uchun. Shunday qilib bulutdagi agent
+# yoki foydalanuvchi asosiy repoda PR'ni merge qilsa, sayt ko'pi bilan bir
+# soatda o'zi yangilanadi — hech kim bu repoga qo'l tegizishi shart emas.
+# Darhol kerak bo'lsa: Actions → "Publish qalqonai.uz" → Run workflow.
+#
+# Sozlama: Settings → Pages → Source = "GitHub Actions".
+name: Publish qalqonai.uz
+
+on:
+  schedule:
+    - cron: "17 * * * *"
+  workflow_dispatch:
+  push:
+    branches: ["main"]
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          repository: abduquddus1990/ota-ona-nazorat
+          ref: main
+          path: src
+
+      - name: Yig'ish
+        run: bash src/site/build.sh "$GITHUB_WORKSPACE/_site"
+
+      # Bosh sahifa va hujjatlar joyida ekanini tekshiramiz — bo'sh sayt
+      # chiqib ketmasin.
+      - name: Tekshiruv
+        run: |
+          for f in index.html privacy-policy.html terms.html account-deletion.html about.html assets/docs.js; do
+            test -s "_site/$f" || { echo "::error::$f yo'q"; exit 1; }
+          done
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: _site
+
+      - id: deployment
+        uses: actions/deploy-pages@v4
